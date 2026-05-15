@@ -48,52 +48,55 @@ const SAMPLE_CODE = `function fetchUserData(userId) {
 }`;
 
 // ── GEMINI API ────────────────────────────────────────────────────────────────
-async function reviewWithGemini(apiKey, code, language, reviewType) {
-  const prompts = {
-    full: `You are an expert code reviewer. Analyze the following ${language} code and provide a comprehensive review.`,
-    bugs: `You are a bug detection expert. Focus ONLY on finding bugs, errors, and logical issues in the following ${language} code.`,
-    security: `You are a security expert. Focus ONLY on security vulnerabilities, injection risks, and unsafe practices in the following ${language} code.`,
-    performance: `You are a performance optimization expert. Focus ONLY on performance issues, inefficiencies, and optimization opportunities in the following ${language} code.`,
-  };
+// async function reviewWithGemini(apiKey, code, language, reviewType) {
+//   const prompts = {
+//     full: `You are an expert code reviewer. Analyze the following ${language} code and provide a comprehensive review.`,
+//     bugs: `You are a bug detection expert. Focus ONLY on finding bugs, errors, and logical issues in the following ${language} code.`,
+//     security: `You are a security expert. Focus ONLY on security vulnerabilities, injection risks, and unsafe practices in the following ${language} code.`,
+//     performance: `You are a performance optimization expert. Focus ONLY on performance issues, inefficiencies, and optimization opportunities in the following ${language} code.`,
+//   };
 
-  const systemPrompt = `${prompts[reviewType]}
+//   const systemPrompt = `${prompts[reviewType]}
 
-Return ONLY a valid JSON object (no markdown, no backticks, no explanation outside JSON) with this exact structure:
-{
-  "score": <number 0-100>,
-  "summary": "<2-3 sentence overall assessment>",
-  "bugs": [{"severity": "high|medium|low", "title": "...", "description": "...", "fix": "..."}],
-  "security": [{"severity": "high|medium|low", "title": "...", "description": "...", "fix": "..."}],
-  "performance": [{"severity": "high|medium|low", "title": "...", "description": "...", "fix": "..."}],
-  "bestPractices": [{"title": "...", "description": "...", "fix": "..."}],
-  "improvedCode": "<the corrected code as a string>"
-}
+// Return ONLY a valid JSON object (no markdown, no backticks, no explanation outside JSON) with this exact structure:
+// {
+//   "score": <number 0-100>,
+//   "summary": "<2-3 sentence overall assessment>",
+//   "bugs": [{"severity": "high|medium|low", "title": "...", "description": "...", "fix": "..."}],
+//   "security": [{"severity": "high|medium|low", "title": "...", "description": "...", "fix": "..."}],
+//   "performance": [{"severity": "high|medium|low", "title": "...", "description": "...", "fix": "..."}],
+//   "bestPractices": [{"title": "...", "description": "...", "fix": "..."}],
+//   "improvedCode": "<the corrected code as a string>"
+// }
 
-If a category has no issues, return an empty array for it. Keep descriptions short and clear. The fix field should show the corrected code snippet.`;
+// DO NOT use nested objects.
+// DO NOT add extra keys.
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ parts: [{ text: `CODE TO REVIEW:\n\`\`\`${language}\n${code}\n\`\`\`` }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 2048 },
-      }),
-    }
-  );
+// If a category has no issues, return an empty array for it. Keep descriptions short and clear. The fix field should show the corrected code snippet.`;
 
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err?.error?.message || "Gemini API error");
-  }
+//   const res = await fetch(
+//     `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+//     {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({
+//         system_instruction: { parts: [{ text: systemPrompt }] },
+//         contents: [{ parts: [{ text: `CODE TO REVIEW:\n\`\`\`${language}\n${code}\n\`\`\`` }] }],
+//         generationConfig: { temperature: 0.2, maxOutputTokens: 2048 },
+//       }),
+//     }
+//   );
 
-  const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  const clean = raw.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
-}
+//   if (!res.ok) {
+//     const err = await res.json();
+//     throw new Error(err?.error?.message || "Gemini API error");
+//   }
+
+//   const data = await res.json();
+//   const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+//   const clean = raw.replace(/```json|```/g, "").trim();
+//   return JSON.parse(clean);
+// }
 
 // ── SCORE RING ────────────────────────────────────────────────────────────────
 function ScoreRing({ score }) {
@@ -171,21 +174,88 @@ export default function AICodeReviewer() {
   const [codeCopied, setCodeCopied] = useState(false);
   const lineCount = code.split("\n").length;
 
-  const handleReview = async () => {
-    if (!apiKey.trim()) { setError("⚠️ Please enter your Gemini API key first."); return; }
-    if (!code.trim())   { setError("⚠️ Please paste some code to review."); return; }
-    setError(""); setResult(null); setLoading(true);
-    try {
-      const res = await reviewWithGemini(apiKey.trim(), code, language, reviewType);
-      setResult(res);
-      const firstNonEmpty = ["bugs","security","performance","bestPractices"].find(k => res[k]?.length > 0);
-      if (firstNonEmpty) setActiveTab(firstNonEmpty);
-    } catch (e) {
-      setError(`❌ ${e.message}`);
-    } finally {
-      setLoading(false);
+const handleReview = async () => {
+
+  if (!code.trim()) {
+    setError("⚠️ Please paste some code to review.");
+    return;
+  }
+
+  setError("");
+  setResult(null);
+  setLoading(true);
+
+  try {
+
+    console.log("Frontend sending request...");
+
+    const response = await fetch("http://localhost:5000/review", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        code,
+        language,
+        reviewType,
+        apiKey
+      }),
+    });
+
+    console.log("Response received from backend");
+
+    const data = await response.json();
+
+    console.log(data);
+
+   if (!data.success || !data.data) {
+  throw new Error("Invalid response from backend");
+}
+
+const cleanText = data.data
+  .replace(/```json/g, "")
+  .replace(/```/g, "")
+  .trim();
+
+const parsedData = JSON.parse(cleanText);
+
+setResult({
+  score: Number(parsedData.score) || 0,
+  summary:
+    parsedData.summary ||
+    parsedData.overall_assessment?.summary ||
+    "No summary available",
+
+  bugs: parsedData.bugs || [],
+  security: parsedData.security || [],
+  performance: parsedData.performance || [],
+  bestPractices: parsedData.bestPractices || [],
+  improvedCode: parsedData.improvedCode || "",
+});
+
+    const firstNonEmpty = [
+      "bugs",
+      "security",
+      "performance",
+      "bestPractices"
+    ].find((k) => parsedData[k]?.length > 0);
+
+    if (firstNonEmpty) {
+      setActiveTab(firstNonEmpty);
     }
-  };
+
+  } catch (e) {
+
+    console.error(e);
+
+    setError(`❌ ${e.message}`);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+};
 
   const copyResult = () => {
     const text = result ? JSON.stringify(result, null, 2) : "";
@@ -393,7 +463,11 @@ export default function AICodeReviewer() {
                   <ScoreRing score={result.score || 0} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 10, color: "#475569", letterSpacing: 1, marginBottom: 6 }}>REVIEW SUMMARY</div>
-                    <p style={{ margin: 0, fontSize: 12, color: "#94a3b8", lineHeight: 1.7 }}>{result.summary}</p>
+                    <p style={{ margin: 0, fontSize: 12, color: "#94a3b8", lineHeight: 1.7 }}>
+  {typeof result.summary === "string"
+    ? result.summary
+    : result.overall_assessment?.summary || "No summary available"}
+</p>
                     <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                       {[
                         { label: "Bugs", val: result.bugs?.length || 0, color: "#f87171" },

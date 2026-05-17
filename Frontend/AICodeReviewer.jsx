@@ -47,56 +47,6 @@ const SAMPLE_CODE = `function fetchUserData(userId) {
   return result
 }`;
 
-// ── GEMINI API ────────────────────────────────────────────────────────────────
-// async function reviewWithGemini(apiKey, code, language, reviewType) {
-//   const prompts = {
-//     full: `You are an expert code reviewer. Analyze the following ${language} code and provide a comprehensive review.`,
-//     bugs: `You are a bug detection expert. Focus ONLY on finding bugs, errors, and logical issues in the following ${language} code.`,
-//     security: `You are a security expert. Focus ONLY on security vulnerabilities, injection risks, and unsafe practices in the following ${language} code.`,
-//     performance: `You are a performance optimization expert. Focus ONLY on performance issues, inefficiencies, and optimization opportunities in the following ${language} code.`,
-//   };
-
-//   const systemPrompt = `${prompts[reviewType]}
-
-// Return ONLY a valid JSON object (no markdown, no backticks, no explanation outside JSON) with this exact structure:
-// {
-//   "score": <number 0-100>,
-//   "summary": "<2-3 sentence overall assessment>",
-//   "bugs": [{"severity": "high|medium|low", "title": "...", "description": "...", "fix": "..."}],
-//   "security": [{"severity": "high|medium|low", "title": "...", "description": "...", "fix": "..."}],
-//   "performance": [{"severity": "high|medium|low", "title": "...", "description": "...", "fix": "..."}],
-//   "bestPractices": [{"title": "...", "description": "...", "fix": "..."}],
-//   "improvedCode": "<the corrected code as a string>"
-// }
-
-// DO NOT use nested objects.
-// DO NOT add extra keys.
-
-// If a category has no issues, return an empty array for it. Keep descriptions short and clear. The fix field should show the corrected code snippet.`;
-
-//   const res = await fetch(
-//     `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-//     {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({
-//         system_instruction: { parts: [{ text: systemPrompt }] },
-//         contents: [{ parts: [{ text: `CODE TO REVIEW:\n\`\`\`${language}\n${code}\n\`\`\`` }] }],
-//         generationConfig: { temperature: 0.2, maxOutputTokens: 2048 },
-//       }),
-//     }
-//   );
-
-//   if (!res.ok) {
-//     const err = await res.json();
-//     throw new Error(err?.error?.message || "Gemini API error");
-//   }
-
-//   const data = await res.json();
-//   const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-//   const clean = raw.replace(/```json|```/g, "").trim();
-//   return JSON.parse(clean);
-// }
 
 // ── SCORE RING ────────────────────────────────────────────────────────────────
 function ScoreRing({ score }) {
@@ -562,3 +512,4 @@ setResult({
     </div>
   );
 }
+
